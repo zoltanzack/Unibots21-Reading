@@ -1,0 +1,16 @@
+- NVIDIA Jetson Nano
+- USB Wired/Wireless keyboard and mouse
+- 5v 40mm PC fan (heatsink cooling)
+- Motor speed controllers
+- Motors
+- Appropriate gauge wires ~(2W, 60W, ~300W) (Red, black, yellow [blue, green])
+- Shrinkwrap
+- Soldering gun and solder
+- Foamboard for prototyping
+- Button
+- Hot glue gun and sticks
+- Identical copy of arena
+- Servos
+- Cutting board
+- Stanley Knife
+- Camera with extra long cable
