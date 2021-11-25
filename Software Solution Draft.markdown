@@ -28,8 +28,20 @@ A motor
 
 A crucial aspect of the task is to travel back to your starting position to deposit your acquired balls
 
-</details>
+<details>
+<summary>**Recycled PS/2 Mouse**</summary>
 
+Such 
+
+**Pros**
+
+- Promotes e-waste awareness
+
+**Cons**
+
+- In
+
+</details>
 
 <details>
 <summary>**Inertial Measurement Unit (IMU) / Accelerometer, Gyroscope, Magnetometer**</summary>
@@ -48,6 +60,15 @@ Such devices measure a variety of forces acting on it, and can theoretically be 
 	- The application requires integration of the samples over time which as with all digital processing is always a compromise, and will induce error in software.
 
 </details>
+
+---
+
+</details>
+
+<details>
+<summary>**Computer Vision**</summary>
+
+Blah blahhhh
 
 <details>
 <summary>**Feature Tracking**</summary>
@@ -89,6 +110,10 @@ Using ultrasonic distance sensors for example; positioning can be theoretically 
 
 In any design, some ball detection is can be implemented to optimise the acqusition of balls (instead of sweeping across the arena in a bruteforce manner).
 In particular cases, further detection can be used to differentiate between tennis and ping pong balls. Perhaps for prioistration, or for sorting. (However sorting is likely to be majorly mechanically achieved, through the aid of software)
+
+</details>
+
+---
 
 </details>
 
