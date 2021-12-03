@@ -1,5 +1,27 @@
 # Software Solution Draft - Mechanical solution counterpart
 
+## Software
+
+SSH - Remote Command-line Interface (CLI)
+
+## Programming
+
+- Signal control - motors, servos
+
+### Computer Vision
+
+- Tradtional computer vision - descriptive analysis
+ - When the attributes of the analysis are known, traditional approaches can typically be superior than neural networks.
+- Neural networks - predicative analysis
+ - Where guesswork is involved, either from lack of human understanding or from missing data, this approach becomes more valuable than traditional techniques.
+ - https://arxiv.org/ftp/arxiv/papers/1910/1910.13796.pdf
+
+For our task, there are multiple computer vision tasks, some of which more suited to one approach than the other.
+AprilTags for example are possibly entirely descriptive, therefore, would neural networks be suited for handling AprilTags?
+
+More appealing to the neural network approach, would be detection of balls and other robots.
+
+
 ## General Process
 
 1. Be started via a button press on the robot
