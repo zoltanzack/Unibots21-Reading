@@ -14,7 +14,7 @@ The mechanical aspect of the robot is every non-electronic physical aspect. Memb
 - Flipper mount and control
 - Mechanisms for acquiring and releasing the balls accurately and controlled
 - Sturdy robot base
-- Promoting up-cycling philosophies to support the reduction of e-waste.
+- Promoting up-cycling philosophy to support the reduction of e-waste.
 
 # Software
 

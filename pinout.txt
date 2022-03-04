@@ -1,0 +1,34 @@
+Jetson Pinout:
+		   N/A - 01 : 02 - N/A
+		   N/A - 03 : 04 - N/A
+		   N/A - 05 : 06 - N/A
+		   N/A - 07 : 08 - N/A
+		   N/A - 09 : 10 - N/A
+		   N/A - 11 : 12 - N/A
+		   N/A - 13 : 14 - N/A
+		   N/A - 15 : 16 - N/A
+   PWM Controller 3.3V - 17 : 18 - N/A
+		   N/A - 19 : 20 - N/A
+		   N/A - 21 : 22 - N/A
+		   N/A - 23 : 24 - N/A
+    PWM Controller GND - 25 : 26 - N/A
+PWM Controller I2C SDA - 27 : 28 - PWM Controller I2C SCL
+		   N/A - 29 : 30 - Motor Controller GND
+		   N/A - 31 : 32 - N/A
+		   N/A - 33 : 34 - N/A
+		   N/A - 35 : 36 - N/A
+		   N/A - 37 : 38 - N/A
+		   N/A - 39 : 40 - N/A
+
+Servo Controller Pinout:
+00: Lower Hatch
+03: Flipper
+04: M1B
+05: M1A
+06: M2A
+07: M2B
+08: Upper Hatch
+
+Voltage convertor:
+	- Potentiometer resistance: 1.02kOhms
+	- Output voltage: 5V
