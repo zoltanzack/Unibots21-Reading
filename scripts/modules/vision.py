@@ -1,130 +1,78 @@
 import cv2
-from matplotlib import pyplot as plt
-import numpy as np
-import methods
 
-cam = cv2.VideoCapture(0)
+def setupCamera():
+    """ 
+	gstreamer_pipeline returns a GStreamer pipeline for capturing from the CSI camera
+	Flip the image by setting the flip_method (most common values: 0 and 2)
+	display_width and display_height determine the size of each camera pane in the window on the 		screen
+	Default 1920x1080 displayd in a 1/4 size window
+	"""
 
-while cam == None:
-    cam = cv2.VideoCapture(0)
+	def gstreamer_pipeline(
+		sensor_id=0,
+		capture_width=1920,
+		capture_height=1080,
+		display_width=960,
+		display_height=540,
+		framerate=30,
+		flip_method=0,
+	):
+		return (
+		    "nvarguscamerasrc sensor-id=0 ! "
+		    "video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, framerate=30/1, 			format=(string)NV12 ! "
+		    "nvvidconv flip-method=2 ! "
+		    "video/x-raw(memory:NVMM), format=(string)BGR! appsink name=mysink"
 
-def fun(_):
-    return
+		    #"nvarguscamerasrc sensor-id=%d !"
+		    #"video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, framerate=(fraction)%d/1 ! "
+		    #"nvvidconv flip-method=%d ! "
+		    #"video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+		    #"videoconvert ! "
+		    #"video/x-raw, format=(string)BGR ! appsink"
+		    #% (
+		    #    sensor_id,
+		    #    capture_width,
+		    #    capture_height,
+		    #    framerate,
+		    #    flip_method,
+		    #    display_width,
+		    #    display_height,
+		    #)
+		)
 
-cv2.namedWindow("controls")
+	# To flip the image, modify the flip_method parameter (0 and 2 are the most common)
+	print(gstreamer_pipeline(flip_method=0))
+	video_capture = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
 
-cv2.createTrackbar("bHueL", "controls", 0, 255, fun)
-cv2.createTrackbar("bHueU", "controls", 0, 255, fun)
-cv2.createTrackbar("bSatL", "controls", 0, 255, fun)
-cv2.createTrackbar("bSatU", "controls", 0, 255, fun)
-cv2.createTrackbar("bValL", "controls", 0, 255, fun)
-cv2.createTrackbar("bValU", "controls", 0, 255, fun)
-cv2.createTrackbar("wHueL", "controls", 0, 255, fun)
-cv2.createTrackbar("wHueU", "controls", 0, 255, fun)
-cv2.createTrackbar("wSatL", "controls", 0, 255, fun)
-cv2.createTrackbar("wSatU", "controls", 0, 255, fun)
-cv2.createTrackbar("wValL", "controls", 0, 255, fun)
-cv2.createTrackbar("wValU", "controls", 0, 255, fun)
-cv2.createTrackbar("blur", "controls", 0, 255, fun)
-cv2.createTrackbar("blurSigma", "controls", 0, 255, fun)
+def show_camera():
+	window_title = "CSI Camera"
 
-cv2.setTrackbarPos("bHueL", "controls", 100)
-cv2.setTrackbarPos("bHueU", "controls", 120)
-cv2.setTrackbarPos("bSatL", "controls", 100)
-cv2.setTrackbarPos("bSatU", "controls", 255)
-cv2.setTrackbarPos("bValL", "controls", 50)
-cv2.setTrackbarPos("bValU", "controls", 255)
+	
+	if video_capture.isOpened():
+	    try:
+	        window_handle = cv2.namedWindow(window_title, cv2.WINDOW_AUTOSIZE)
+	        while True:
+	            ret_val, frame = video_capture.read()
+	            # Check to see if the user closed the window
+	            # Under GTK+ (Jetson Default), WND_PROP_VISIBLE does not work correctly. Under Qt it does
+	            # GTK - Substitute WND_PROP_AUTOSIZE to detect if window has been closed by user
+	            if cv2.getWindowProperty(window_title, cv2.WND_PROP_AUTOSIZE) >= 0:
+	                cv2.imshow(window_title, frame)
+	            else:
+	                break 
+	            keyCode = cv2.waitKey(10) & 0xFF
+	            # Stop the program on the ESC key or 'q'
+	            if keyCode == 27 or keyCode == ord('q'):
+	                break
+	    finally:
+	        video_capture.release()
+	        cv2.destroyAllWindows()
+	else:
+	    print("Error: Unable to open camera")
 
-cv2.setTrackbarPos("wHueL", "controls", 37)
-cv2.setTrackbarPos("wHueU", "controls", 97)
-cv2.setTrackbarPos("wSatL", "controls", 9)
-cv2.setTrackbarPos("wSatU", "controls", 139)
-cv2.setTrackbarPos("wValL", "controls", 154)
-cv2.setTrackbarPos("wValU", "controls", 235)
 
-cv2.setTrackbarPos("blur", "controls", 13)
-cv2.setTrackbarPos("blurSigma", "controls", 2)
+	#vc = cv2.VideoCapture(0)
 
-while True:
-    ret, frame = cam.read()
-    if not ret:
-        continue
-       
-    size = 420
-    ratio = frame.shape[1] / frame.shape[0]
-       
-    frame = cv2.resize(frame, (int(size * ratio), size))
-    
-    
-    val = int(cv2.getTrackbarPos("blur","controls"))
-    kernelSize = int((size*.1)-1)
-    if val % 2 == 0:
-        kernelSize = val + 1
-    else:
-        kernelSize = val
-        
-    frame = cv2.GaussianBlur(frame, (kernelSize, kernelSize), int(cv2.getTrackbarPos("blurSigma","controls")))
-        
-    # Colour banding. Blue and white
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        
-    blueL = (int(cv2.getTrackbarPos("bHueL","controls")), int(cv2.getTrackbarPos("bSatL","controls")), int(cv2.getTrackbarPos("bValL","controls")))
-    blueU = (int(cv2.getTrackbarPos("bHueU","controls")), int(cv2.getTrackbarPos("bSatU","controls")), int(cv2.getTrackbarPos("bValU","controls")))
-    
-    whiteL = (int(cv2.getTrackbarPos("wHueL","controls")), int(cv2.getTrackbarPos("wSatL","controls")), int(cv2.getTrackbarPos("wValL","controls")))
-    whiteU = (int(cv2.getTrackbarPos("wHueU","controls")), int(cv2.getTrackbarPos("wSatU","controls")), int(cv2.getTrackbarPos("wValU","controls")))
-        
-    hsvBlue = cv2.inRange(hsv, blueL, blueU)
-    hsvWhite = cv2.inRange(hsv, whiteL, whiteU)
-    
-    contoursBlue, hierarchyBlur = cv2.findContours(hsvBlue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    contourBlue = cv2.cvtColor(hsvBlue, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contourBlue, contoursBlue, -1, (255,0,0), 5)
-    
-    contoursWhite, hierarchyWhite = cv2.findContours(hsvWhite, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    contourWhite = cv2.cvtColor(hsvWhite, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(contourWhite, contoursWhite, -1, (255,0,0), 4)
-    
-
-    contour_img = contourBlue + contourWhite
-    cv2.imshow("contours", contour_img)
-
-    ret, ballMask = cv2.threshold(cv2.cvtColor(contour_img, cv2.COLOR_BGR2GRAY), 244, 255, cv2.THRESH_BINARY)
-
-    ballMask = cv2.cvtColor(ballMask, cv2.COLOR_GRAY2BGR)
-    cv2.drawContours(ballMask, contoursWhite, -1, (0,0,255), 2)
-    cv2.drawContours(ballMask, contoursBlue, -1, (0,0,255), 2)
-        
-    cv2.imshow("ballMask", ballMask)
-        
-    hsv2 = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    hsv2[hsv == 0] = 1
-    hsv2 = np.float32(hsv2)
-    
-    h,s,v = cv2.split(hsv2)
-
-    s1 = s/2
-    v1 = v/2
-    
-    sv = s1+v1
-    
-    s = np.uint8(s)
-    v = np.uint8(v)
-    sv = np.uint8(sv)
-    
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    cv2.imshow("frame", frame)
-    cv2.imshow("gray", gray)
-    #cv2.imshow("s", s)
-    #cv2.imshow("v", v)
-    #cv2.imshow("sv", sv)
-    
-    
-    passFirst = True
-
-    if cv2.waitKey(1) == 27:
-        break
-
-cam.release()
-cv2.destroyAllWindows()
+	#if vc.isOpened(): # try to get the first frame
+	#    is_capturing, frame = vc.read()
+	#    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)    # makes the blues image look real colored
