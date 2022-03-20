@@ -13,7 +13,7 @@ class Camera:
         self.frame = cv2.imread('../apriltags/test_environment_2.png', 1)
         size = 720
         ratio = self.frame.shape[1] / self.frame.shape[0]   
-        self.frame = cv2.resize(self.frame, (int(size * ratio), size))
+        self.frame = cv2.resize(self.frame, (int(size * ratio), size), interpolation=cv2.INTER_AREA)
         
     def getFrame(self):
         # Get frame
@@ -28,9 +28,19 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
         COLOUR = 1
         HSV = 2
 
-    directionColours = [(0, 255, 255), (255, 0, 200), (0, 127, 255), (0, 230, 0)]
+    directionColours = [(0, 255, 255), (255, 0, 200), (0, 127, 255), (0, 230, 0)] # Yellow, Purple, Orange, Green
     exactBallColours = [(40, 215, 200), (80, 190, 255)]
     compassDirections = ['E', 'ENE', 'NE', 'NNE', 'N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE']
+    aprilTag_definition = np.array([[1,1,1,1,1,1,1,1,1,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,0,0,0,0,0,0,0,0,1],
+                                    [1,1,1,1,1,1,1,1,1,1]])
         
     # Member variables to be populated through the computer vision (CV) tasks
     frame = None # Current frame taken from the camera to be used during CV tasks
@@ -73,11 +83,21 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             self.virtualisedView = walls_image.copy()
             cv2.putText(self.virtualisedView, self.__createDirectionName(self.direction), (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2, cv2.LINE_AA)
           
-        # Create floor mask
+        # Create floor mask 
+        
+        # rescale wall_mask to very small size
+        print(self.wall_mask.shape)
+        test = cv2.dilate(self.wall_mask, np.ones((2,2)), 1)
+        test = cv2.resize(test, None, fx=0.1, fy=0.1)
+        #cv2.imshow("Shrank wall mask", test)
+        
+        # detect 
+        
         temp_mask = self.wall_mask.copy()
-        temp_mask = cv2.dilate(temp_mask, np.ones((5,5)), 1)
+        temp_mask = cv2.dilate(temp_mask, np.ones((2,2)), 1)
         temp_mask = ~temp_mask
         temp_mask[temp_mask!=0] = 255
+        cv2.imshow("floor mask", temp_mask)
         contours, _ = cv2.findContours(temp_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         self.floor_mask = np.zeros_like(temp_mask)
         cv2.fillPoly(self.floor_mask, pts=[contours[0]], color=255)
@@ -129,20 +149,22 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
         #cv2.imshow("tag thresh", tag_image)
 
         # 3.3 Contour tags to segregate them
-        test = self.__convertColour(tag_image, self.Options.COLOUR)
         tag_contours, _ = cv2.findContours(tag_image, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         tags = []
-        print(f'Can see {len(tag_contours)} april tags')
-
         # 3.4 Perform perspective transformation            
         for tag in tag_contours:
+            if cv2.contourArea(tag) < 50:
+                continue
+        
             contour_image = np.zeros_like(tags_masked)
             cv2.drawContours(contour_image, [tag], -1, 255, -1)
             moments = cv2.moments(self.__convertColour(contour_image, self.Options.GRAY))
             center = (int(moments["m10"] / moments["m00"]), int(moments["m01"] / moments["m00"])) # Image moments, puzzling stuff
             #cv2.putText(tags_masked, str(i), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-            
+
             pts1 = self.__getFurthestFourPoints(tag, center)
+            if pts1 is None:
+                continue
             
             #cv2.circle(tags_masked, pts1[0], 4, (0, 0, 255), -1)
             #cv2.circle(tags_masked, pts1[1], 4, (0, 255, 0), -1)
@@ -154,13 +176,15 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             tags.append(((cv2.boundingRect(tag)), cv2.warpPerspective(tags_masked, matrix, (320, 320), flags=cv2.INTER_NEAREST))) # ((x,y,w,h), image)
 
         #cv2.imshow("tag masked", tags_masked)
+        
         #for i, tag in enumerate(tags): 
-        #    cv2.imshow(f'tag {i}', tag)
+        #    cv2.imshow(f'tag {i}', tag[1])
 
         # 3.3 Create apriltag matrix
         tag_mats = []
+        temp_tags = []
         for i in range(len(tags)):
-            tag_mats.append(np.ones([10,10]))
+            tag_mat = np.ones([10,10], dtype=np.uint8)
             
             image = self.__convertColour(tags[i][1], self.Options.GRAY)
             #cv2.imshow(f'tags 0 {i}', image)
@@ -169,11 +193,18 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             for y in range(10):
                 for x in range(10):
                     point = (y*32+16, x*32+16)
-                    tag_mats[i][y,x] = thresh[point[0],point[1]]
-                    #cv2.circle(thresh, point, 2, 127, -1)
-
+                    tag_mat[y,x] = 1 if thresh[point[0],point[1]] else 0
+                    #cv2.circle(thresh, (point[1], point[0]), 2, 127, -1)
+            
+            # Verify is april tag
+            if np.array_equal(np.bitwise_and(tag_mat, self.aprilTag_definition), self.aprilTag_definition):
+                tag_mats.append(tag_mat)
+                temp_tags.append(tags[i])
+            
             #cv2.imshow(f'tags {i}', thresh)
-
+        tags = temp_tags
+        print(f'Found {len(tags)} april tags')
+        
         # Reproduce apriltag - testing
         tag_mat_images = []
         for i in range(len(tags)):
@@ -181,8 +212,8 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             for y in range(tag_mats[i].shape[0]):
                 for x in range(tag_mats[i].shape[1]):
                     tag_mat_images[i][y*32:y*32+32, x*32:x*32+32] = 255 if tag_mats[i][y,x] else 0
-
-            cv2.imshow(f'reproduced tag {i}', tag_mat_images[i])
+ 
+            #cv2.imshow(f'reproduced tag {i}', tag_mat_images[i])
 
         # Overlay reproduced april tags onto virtualisation image
         if self.produceVirtualisation:
@@ -192,27 +223,41 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             
     def getVirtualisedView(self):
         return self.virtualisedView
-    
+
     # Private methods for computer vision tasks
     def __detectWalls(self):
         wall_image = np.zeros_like(self.frame)
-        print(wall_image.shape)
         wall_mask = np.zeros((wall_image.shape[0], wall_image.shape[1]), dtype=np.uint8)
         walls = []
         for direction, wall in enumerate(self.wallColours): # Loop through walls
             mask = self.__colourExtract(self.frame, wall, convert=True)
             contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-            for contour in contours:
-                print(cv2.contourArea(contour))
-                if cv2.contourArea(contour) > 8000:
-                    walls.append((direction, contour))
-                    #cv2.drawContours(wall_image, contours, -1, (0, 255, 0), 3, cv2.LINE_AA)
-                    cv2.fillPoly(wall_image, pts=[contour], color=self.directionColours[direction])
-                    cv2.fillPoly(wall_mask, pts=[contour], color=255)
+            contours = [contour for contour in contours if cv2.contourArea(contour) > 5000]
+
+            if len(contours) > 0:
+                contour_mask = np.zeros_like(wall_mask)
+                cv2.fillPoly(contour_mask, pts=contours, color=255)
+                moments = cv2.moments(contour_mask)
+                center = (int(moments["m10"] / moments["m00"]), int(moments["m01"] / moments["m00"])) # Image moments, puzzling stuff
+                points = self.__getFurthestFourPoints(contours, center, multi=True)
+                contour_array = np.array([points])
+                
+                cv2.circle(wall_image, points[0], 4, (0, 0, 255), -1)
+                cv2.circle(wall_image, points[1], 4, (0, 255, 0), -1)
+                cv2.circle(wall_image, points[2], 4, (255, 0, 0), -1)
+                cv2.circle(wall_image, points[3], 4, (0, 255, 255), -1)
+                
+                cv2.fillPoly(wall_image, pts=contour_array, color=self.directionColours[direction])
+                cv2.fillPoly(wall_mask, pts=contour_array, color=255)
+     
+                walls.append((direction, contour_array))
 
         return wall_image, wall_mask, walls
     
-    def __getFurthestFourPoints(self, points, center):
+    def __getFurthestFourPoints(self, points, center, multi=False):
+        if multi: # Convert list of contours into single list of multiple contours
+            points = [point for contour in points for point in contour]
+    
         furthest = [None, None, None, None]
         for point in points:
             point = point[0]
@@ -234,6 +279,10 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
             
             if furthestDist < newDist:
                 furthest[direction] = point
+                
+        for i in range(len(furthest)):
+            if furthest[i] is None:
+                return None
                 
         return np.array(furthest)
     
@@ -316,7 +365,8 @@ class Vision: # All is subject to optimisation if possible. This was quickly put
         return sobel_edge_xy
 
 if __name__ == "__main__":
-    test_image = cv2.imread('../../apriltags/test_environment_2.png', 1)
+    test_image = cv2.imread('../../apriltags/test_environment_6.png', 1)
+
 
     size = 720
     ratio = test_image.shape[1] / test_image.shape[0]   

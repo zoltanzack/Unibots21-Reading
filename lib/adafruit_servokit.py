@@ -38,7 +38,8 @@ from adafruit_pca9685 import PCA9685
 try:
     from typing import Optional
     from busio import I2C
-    from adafruit_motor.servo import Servo, ContinuousServo
+    from adafruit_motor.motor import Servo, ContinuousServo
+    from adafruit_motor.servo import DCMotor
 except ImportError:
     pass
 
@@ -71,28 +72,19 @@ class ServoKit:
 
     """
 
-    def __init__(
-        self,
-        *,
-        channels: int,
-        i2c: Optional[I2C] = None,
-        address: int = 0x40,
-        reference_clock_speed: int = 25000000,
-        frequency: int = 50
-    ) -> None:
+    def __init__(self, *, channels: int, i2c: Optional[I2C] = None, address: int = 0x40, reference_clock_speed: int = 25000000, frequency: int = 50) -> None:
         if channels not in [8, 16]:
             raise ValueError("servo_channels must be 8 or 16!")
         self._items = [None] * channels
-        self._channels = channels
-        if i2c is None:
-            i2c = board.I2C()
-        self._pca = PCA9685(
-            i2c, address=address, reference_clock_speed=reference_clock_speed
-        )
+        self.channels = channels
+
+        i2c = board.I2C() if i2c is None else i2c
+        self._pca = PCA9685(i2c, address=address, reference_clock_speed=reference_clock_speed)
         self._pca.frequency = frequency
 
         self._servo = _Servo(self)
         self._continuous_servo = _ContinuousServo(self)
+        self._dc_motor = _DCMotor(self)
 
     @property
     def servo(self) -> "_Servo":
@@ -139,6 +131,9 @@ class ServoKit:
         """
         return self._continuous_servo
 
+    @property
+    def dc_motor(self) -> "_DCMotor":
+        return self._dc_motor
 
 class _Servo:
     # pylint: disable=protected-access
@@ -187,6 +182,35 @@ class _ContinuousServo:
         ):
             return servo
         raise ValueError("Channel {} is already in use.".format(servo_channel))
+
+    def __len__(self) -> int:
+        return len(self.kit._items)
+
+
+class _DCMotor:
+    # pylint: disable=protected-access
+    def __init__(self, kit: ServoKit) -> None:
+        self.kit = kit
+
+    def __getitem__(self, positive_channel: int, negative_channel: int) -> DCMotor:
+        import adafruit_motor.motor  # pylint: disable=import-outside-toplevel
+
+        num_channels = self.kit._channels
+        if positive_channel >= num_channels or negative_channel >= num_channels or positive_channel < 0 or negative_channel < 0:
+            raise ValueError("channels must be 0-{}!".format(num_channels - 1))
+
+        motor = self.kit._items[negative_channel] if self.kit._items[positive_channel] is None else self.kit._items[positive_channel]
+        if motor is None:
+            motor = adafruit_motor.motor.DCMotor(
+                self.kit._pca.channels[positive_channel],
+                self.kit._pca.channels[negative_channel]
+            )
+            self.kit._items[positive_channel] = self.kit._items[negative_channel] = motor
+            return motor
+        if isinstance(self.kit._items[positive_channel], adafruit_motor.motor.DCMotor) and isinstance(self.kit._items[negative_channel], adafruit_motor.motor.DCMotor):
+            return motor
+        else:
+            raise ValueError("Channel {} and {} is already in use.".format(positive_channel, negative_channel))
 
     def __len__(self) -> int:
         return len(self.kit._items)
